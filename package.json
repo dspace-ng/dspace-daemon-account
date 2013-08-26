@@ -1,0 +1,22 @@
+{
+  "name": "dspace-bayeux-server",
+  "version": "0.0.0",
+  "description": "Prototype of server based on Bayeux protocol",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "dspace",
+    "bayeux",
+    "pubsub"
+  ],
+  "author": "☮ elf Pavlik ☮ <perpetual-tripper@wwelves.org>",
+  "license": "Unlicense",
+  "dependencies": {
+    "faye": "0.8.9",
+    "cradle": "0.6.6"
+  },
+  "devDependencies": {
+  }
+}
