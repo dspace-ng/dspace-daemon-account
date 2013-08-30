@@ -1,7 +1,11 @@
 var Faye = require('faye');
 var cradle = require('cradle');
 
-var db = new(cradle.Connection)().database('dspace-elevate');
+var db = new(cradle.Connection)(process.env.COUCH_IP,
+                                process.env.COUCH_PORT,
+                                {auth: {username: process.env.COUCH_USERNAME, 
+                                        password: process.env.COUCH_PASSWORD}}
+                               ).database('dspace-elevate')
 
 /*
  * Extension to persist data
