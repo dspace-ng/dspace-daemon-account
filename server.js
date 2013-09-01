@@ -7,6 +7,8 @@ var db = new(cradle.Connection)(process.env.COUCH_IP,
                                         password: process.env.COUCH_PASSWORD}}
                                ).database('dspace-elevate')
 
+var savedState = {};
+
 /*
  * Extension to persist data
  * http://faye.jcoglan.com/node/extensions.html
@@ -29,8 +31,34 @@ var persistData = {
     // call the server back
     callback(message);
   }
+};
+
+var rememberState = {
+  incoming: function(message, callback) {
+    if(! message.channel.match(/^\/meta\//)) {
+      if(! savedState[message.channel]) savedState[message.channel] = {};
+      savedState[message.channel][message.clientId] = message;
+    }
+    callback(message);
+  },
+
+  outgoing: function(message, callback) {
+    if(message.channel == '/meta/subscribe' && message.successful) {
+      if(! message.ext) message.ext = {};
+      if(message.subscription in savedState) {
+        var channelState = savedState[message.subscription];
+        message.ext.initialState = Object.keys(channelState).map(function(clientId) {
+          return channelState[clientId];
+        });
+      } else {
+        message.ext.initialState = [];
+      }
+    }
+    callback(message);
+  }
 }
 
 var bayeux = new Faye.NodeAdapter({mount: '/dspace'});
 bayeux.addExtension(persistData);
+bayeux.addExtension(rememberState);
 bayeux.listen(5000);
