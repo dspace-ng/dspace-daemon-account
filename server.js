@@ -37,7 +37,7 @@ var rememberState = {
   incoming: function(message, callback) {
     if(! message.channel.match(/^\/meta\//)) {
       if(! savedState[message.channel]) savedState[message.channel] = {};
-      savedState[message.channel][message.clientId] = message;
+      savedState[message.channel][message.nickname] = message;
     }
     callback(message);
   },
@@ -47,8 +47,8 @@ var rememberState = {
       if(! message.ext) message.ext = {};
       if(message.subscription in savedState) {
         var channelState = savedState[message.subscription];
-        message.ext.initialState = Object.keys(channelState).map(function(clientId) {
-          return channelState[clientId];
+        message.ext.initialState = Object.keys(channelState).map(function(nickname) {
+          return channelState[nickname];
         });
       } else {
         message.ext.initialState = [];
