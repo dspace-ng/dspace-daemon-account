@@ -1,11 +1,12 @@
 var Faye = require('faye');
 var cradle = require('cradle');
-
-var db = new(cradle.Connection)(process.env.COUCH_IP,
-                                process.env.COUCH_PORT,
-                                {auth: {username: process.env.COUCH_USERNAME, 
-                                        password: process.env.COUCH_PASSWORD}}
-                               ).database('dspace-elevate')
+var http = require('http')
+var persona = require('./persona');
+// var db = new(cradle.Connection)(process.env.COUCH_IP,
+//                                 process.env.COUCH_PORT,
+//                                 {auth: {username: process.env.COUCH_USERNAME, 
+//                                         password: process.env.COUCH_PASSWORD}}
+//                                ).database('dspace-elevate')
 
 var savedState = {};
 
@@ -59,6 +60,35 @@ var rememberState = {
 }
 
 var bayeux = new Faye.NodeAdapter({mount: '/dspace'});
-bayeux.addExtension(persistData);
+//bayeux.addExtension(persistData);
 bayeux.addExtension(rememberState);
-bayeux.listen(5000);
+
+var server = http.createServer(function(request, response) {
+  console.log('REQUEST', request.method, request.url);
+  switch(request.method) {
+  case 'OPTIONS':
+    response.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST',
+      'Access-Control-Allow-Headers': 'Origin, Content-Type',
+      'Access-Control-Expose-Headers': 'Content-Type, Content-Length'
+    });
+    response.end();
+    break;
+  case 'POST':
+    if(request.url == '/auth')
+      persona.auth(request, response, function(error, persona_response){
+        if(error) {
+          console.error("Persona Failed : ", error.message)
+        } else {
+          console.log("Here we are Now, Authenticated")
+        }
+      });
+    break;
+  }
+});
+
+bayeux.attach(server);
+server.listen(5000, function() {
+  console.log('listening on 5000');
+});
