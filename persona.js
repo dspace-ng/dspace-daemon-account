@@ -1,9 +1,11 @@
 var https = require('https');
-//var exports = {}
+
+var audience = "http://localhost:3000";
+// var exports = {}
 var cb;
 exports.auth = function(req, resp, callback){
   cb = callback;
-  //parsing the post data
+  // parsing the post data
   str = '';
   req.on('data', function(chunk) {
     str += chunk;
@@ -15,7 +17,7 @@ exports.auth = function(req, resp, callback){
       if(pair.length == 2){
         data[pair[0]]=pair[1];
       }else{
-//        console.error("PARSING ERROR :",keyval)
+        // console.error("PARSING ERROR :",keyval)
         cb(new Error("parsing error '"+keyval+"'"))
         resp.writeHead('403')
         resp.end();
@@ -23,7 +25,7 @@ exports.auth = function(req, resp, callback){
     })
 
     var assertion =  data['assertion'];
-    //we have an assertion thingi
+    // we have an assertion thingi
     if(assertion){ 
       auth(assertion, resp);
     } else {
@@ -37,7 +39,7 @@ exports.auth = function(req, resp, callback){
 
 function auth(assertion, resp){
   //taliking to the persona server
-  var body = "audience="+encodeURIComponent("http://localhost:3000")+"&assertion="+assertion
+  var body = "audience="+encodeURIComponent(audience)+"&assertion="+assertion
   var request = https.request({
     host: 'verifier.login.persona.org',
     path: '/verify',
