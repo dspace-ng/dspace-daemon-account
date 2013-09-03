@@ -14,6 +14,7 @@
   "author": "☮ elf Pavlik ☮ <perpetual-tripper@wwelves.org>",
   "license": "Unlicense",
   "dependencies": {
+    "node-uuid": "*",
     "crypto": "*",
     "faye": "0.8.9",
     "cradle": "0.6.6"

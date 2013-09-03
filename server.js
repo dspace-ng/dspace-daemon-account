@@ -1,8 +1,10 @@
 var Faye = require('faye');
 var cradle = require('cradle');
-var http = require('http')
+var http = require('http');
 var persona = require('./persona');
-var crypto = require('crypto')
+var crypto = require('crypto');
+var uuid = require('node-uuid');
+
 // var db = new(cradle.Connection)(process.env.COUCH_IP,
 //                                 process.env.COUCH_PORT,
 //                                 {auth: {username: process.env.COUCH_USERNAME, 
@@ -41,8 +43,6 @@ var authentication = {
   incoming : function(message, callback){
     //handiling subscriptions
     if(message.channel == '/meta/subscribe' ){
-
-//      console.log(message)
       var msgSubscription = message.subscription;
       var msgToken = message.ext && message.ext.token;
       var subscriptions = tokens[msgToken]
@@ -53,7 +53,7 @@ var authentication = {
     }
     callback(message);
   }
-  //no outgoing messages needs to be handled I assume when you can't subscribe uit will never send anything
+  //no outgoing messages needs to be handled I assume when you can't subscribe, it will never send anything
   // but maybe we have to prevent faye to propagate to channels of higher levels let's see
   // outgoing : function(message, callback){
 
@@ -98,7 +98,33 @@ var CORS_HEADERS = {
   'Access-Control-Expose-Headers': 'Content-Type, Content-Length'
 };
 
+
+function generateToken(cb) {
+  crypto.randomBytes(32, function(err, buf) {
+    if(err)
+      cb(err)
+    else 
+      cb(undefined, buf.toString('base64'));
+  })
+}
+
+
 var server = http.createServer(function(request, response) {
+  
+  function sendJSON(data){
+    var headers = {
+      'Content-Type': 'application/json'
+    };
+    for(var key in CORS_HEADERS) {
+      headers[key] = CORS_HEADERS[key];
+    }
+    response.writeHead(200, headers);
+    response.write( JSON.stringify(data) );
+    response.end();
+
+  }
+
+
   console.log('REQUEST', request.method, request.url);
   switch(request.method) {
   case 'OPTIONS':
@@ -107,6 +133,25 @@ var server = http.createServer(function(request, response) {
     break;
   case 'POST':
     if(request.url == '/auth')
+      if(request.body.indexOf(assertion) < 0){
+        generateToken(function(err, token){
+          if(err){
+            console.log("authorization of unidentified user failed : ", err)
+            response.writeHead(500, CORSE_HEADERS);
+            response.write(err);
+            response.end();
+          } else {
+            var id = uuid.v4();
+            tokens[token] = ['/dspace/'+id ]
+            sendJSON( {
+              token:token, 
+              id:id 
+            } )
+          }
+        })
+
+        break;
+      }
       persona.auth(request, function(error, persona_response){
         if(error) {
           console.error("Persona Failed : ", error.message);
@@ -115,26 +160,17 @@ var server = http.createServer(function(request, response) {
           response.end();
         } else {
           console.log("Here we are Now, Authenticated");
-          crypto.randomBytes(32, function(err, buf) {
+          generateToken(function(err, token) {
             if(err) {
               response.writeHead(500, CORS_HEADERS);
               response.write(err);
               response.end();
             } else {
-              var token = buf.toString('base64');
               tokens[token] = ['/dspace'];
-              var headers = {
-                'Content-Type': 'application/json'
-              };
-              for(var key in CORS_HEADERS) {
-                headers[key] = CORS_HEADERS[key];
-              }
-              response.writeHead(200, headers);
-              response.write(JSON.stringify({
-                persona_response: persona_response,
-                token: token
-              }));
-              response.end();
+              sendJSON({
+                token:token, 
+                id:persona_response.email
+              })
             }
           });
         }
@@ -142,6 +178,7 @@ var server = http.createServer(function(request, response) {
     break;
   }
 });
+
 
 bayeux.attach(server);
 server.listen(5000, function() {
