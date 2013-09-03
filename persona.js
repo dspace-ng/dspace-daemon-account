@@ -1,43 +1,27 @@
 var https = require('https');
+var qs = require('querystring');
 
 var audience = "http://localhost:3000";
 // var exports = {}
-var cb;
-exports.auth = function(req, resp, callback){
-  cb = callback;
+exports.auth = function(req, callback){
   // parsing the post data
-  str = '';
+  var body = '';
   req.on('data', function(chunk) {
-    str += chunk;
+    body += chunk;
   });
   req.on('end', function(){
-    var data = {}
-    str.split('&').forEach(function(keyval){
-      var pair = keyval.split('=');
-      if(pair.length == 2){
-        data[pair[0]]=pair[1];
-      }else{
-        // console.error("PARSING ERROR :",keyval)
-        cb(new Error("parsing error '"+keyval+"'"))
-        resp.writeHead('403')
-        resp.end();
-      }
-    })
-
+    var data = qs.parse(body);
     var assertion =  data['assertion'];
     // we have an assertion thingi
     if(assertion){ 
-      auth(assertion, resp);
+      auth(assertion, callback);
     } else {
-      cb(new Error("no assertion found : '"+str+"'" ))
-      resp.writeHead(403,{})
-      resp.end();
-      
+      callback(new Error("no assertion found : '"+str+"'" ))
     }
-  })
+  });
 }
 
-function auth(assertion, resp){
+function auth(assertion, callback){
   //taliking to the persona server
   var body = "audience="+encodeURIComponent(audience)+"&assertion="+assertion
   var request = https.request({
@@ -58,19 +42,11 @@ function auth(assertion, resp){
         var verified = JSON.parse(data);
         if (verified.status == 'okay') {
 //          console.info('browserid auth successful : ', verified.email);
-          resp.writeHead(200, {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST',
-            'Content-Type' : 'application/json',
-          })
-          cb(undefined,verified);
+          callback(undefined,verified);
         } else {
 //          console.error(verified.reason);
-          cb(new Error(verified.reason), undefined);
-          resp.writeHead(403);
+          callback(new Error(verified.reason), undefined);
         }
-        resp.write(data);
-        resp.end();
       });
   })
   request.write(body);

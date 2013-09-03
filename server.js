@@ -2,6 +2,7 @@ var Faye = require('faye');
 var cradle = require('cradle');
 var http = require('http')
 var persona = require('./persona');
+var crypto = require('crypto')
 // var db = new(cradle.Connection)(process.env.COUCH_IP,
 //                                 process.env.COUCH_PORT,
 //                                 {auth: {username: process.env.COUCH_USERNAME, 
@@ -34,10 +35,36 @@ var persistData = {
   }
 };
 
+tokens = {}
+
+var authentication = {
+  incoming : function(message, callback){
+    //handiling subscriptions
+    if(message.channel == '/meta/subscribe' ){
+
+//      console.log(message)
+      var msgSubscription = message.subscription;
+      var msgToken = message.ext && message.ext.token;
+      var subscriptions = tokens[msgToken]
+      if( ! subscriptions ||  subscriptions.indexOf(msgSubscription) == -1 )  {
+        message.error = "not allowed to subscribe to this channel";
+        console.log('rejected : ', message)
+      }
+    }
+    callback(message);
+  }
+  //no outgoing messages needs to be handled I assume when you can't subscribe uit will never send anything
+  // but maybe we have to prevent faye to propagate to channels of higher levels let's see
+  // outgoing : function(message, callback){
+
+  // }
+}
+
 var rememberState = {
   incoming: function(message, callback) {
     if(! message.channel.match(/^\/meta\//)) {
-      if(! savedState[message.channel]) savedState[message.channel] = {};
+      if(! savedState[message.channel]) 
+        savedState[message.channel] = {};
       savedState[message.channel][message.nickname] = message;
     }
     callback(message);
@@ -59,29 +86,57 @@ var rememberState = {
   }
 }
 
-var bayeux = new Faye.NodeAdapter({mount: '/dspace'});
+var bayeux = new Faye.NodeAdapter({mount: '/faye'});
 //bayeux.addExtension(persistData);
 bayeux.addExtension(rememberState);
+bayeux.addExtension(authentication);
+
+var CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST',
+  'Access-Control-Allow-Headers': 'Origin, Content-Type',
+  'Access-Control-Expose-Headers': 'Content-Type, Content-Length'
+};
 
 var server = http.createServer(function(request, response) {
   console.log('REQUEST', request.method, request.url);
   switch(request.method) {
   case 'OPTIONS':
-    response.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST',
-      'Access-Control-Allow-Headers': 'Origin, Content-Type',
-      'Access-Control-Expose-Headers': 'Content-Type, Content-Length'
-    });
+    response.writeHead(204, CORS_HEADERS);
     response.end();
     break;
   case 'POST':
     if(request.url == '/auth')
-      persona.auth(request, response, function(error, persona_response){
+      persona.auth(request, function(error, persona_response){
         if(error) {
-          console.error("Persona Failed : ", error.message)
+          console.error("Persona Failed : ", error.message);
+          response.writeHead(401, CORS_HEADERS);
+          response.write(error);
+          response.end();
         } else {
-          console.log("Here we are Now, Authenticated")
+          console.log("Here we are Now, Authenticated");
+          crypto.randomBytes(32, function(err, buf) {
+            if(err) {
+              response.writeHead(500, CORS_HEADERS);
+              response.write(err);
+              response.end();
+            } else {
+              var token = buf.toString('base64');
+              tokens[token] = ['/dspace'];
+              var headers = {
+                'Content-Type': 'application/json'
+              };
+              for(var key in CORS_HEADERS) {
+                headers[key] = CORS_HEADERS[key];
+              }
+              response.writeHead(200, headers);
+              response.write(JSON.stringify({
+                persona_response: persona_response,
+                token: token
+              }));
+              response.end();
+            }
+          });
         }
       });
     break;
