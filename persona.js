@@ -11,12 +11,15 @@ exports.auth = function(req, callback){
   });
   req.on('end', function(){
     var data = qs.parse(body);
+    req.body = data
     var assertion =  data['assertion'];
     // we have an assertion thingi
     if(assertion){ 
       auth(assertion, callback);
     } else {
-      callback(new Error("no assertion found : '"+str+"'" ))
+      var e = new Error("no assertion found : '"+str+"'" )
+      e.reason = 'nopersona'
+      callback(e);
     }
   });
 }

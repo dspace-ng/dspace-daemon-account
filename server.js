@@ -4,6 +4,7 @@ var http = require('http');
 var persona = require('./persona');
 var crypto = require('crypto');
 var uuid = require('node-uuid');
+var fs = require('fs');
 
 // var db = new(cradle.Connection)(process.env.COUCH_IP,
 //                                 process.env.COUCH_PORT,
@@ -37,7 +38,16 @@ var persistData = {
   }
 };
 
-tokens = {}
+var tokens = {}; try {
+  tokens = JSON.stringify(fs.readFileSync(env.tokens).toString());
+} catch(e) {
+  console.error("loading tokens failed ", e);
+} 
+var users = {}; try {
+  users = JSON.stringify(fs.readFileSync(env.users).toString());
+} catch(e) {
+  console.error("loading users failed ", e);
+} 
 
 var authentication = {
   incoming : function(message, callback){
@@ -124,6 +134,23 @@ var server = http.createServer(function(request, response) {
 
   }
 
+  function anonymousAuth(){
+    generateToken(function(err, token){
+      if(err) {
+        console.log("authorization of unidentified user failed : ", err)
+        response.writeHead(500, CORSE_HEADERS);
+        response.write(err);
+        response.end();
+      } else {
+        var id = uuid.v4();
+        tokens[token] = ['/dspace/'+id ]
+        sendJSON( {
+          token:token, 
+          id:id 
+        } )
+      }
+    })
+  }
 
   console.log('REQUEST', request.method, request.url);
   switch(request.method) {
@@ -133,46 +160,38 @@ var server = http.createServer(function(request, response) {
     break;
   case 'POST':
     if(request.url == '/auth')
-      if(request.body.indexOf(assertion) < 0){
-        generateToken(function(err, token){
-          if(err){
-            console.log("authorization of unidentified user failed : ", err)
-            response.writeHead(500, CORSE_HEADERS);
-            response.write(err);
-            response.end();
-          } else {
-            var id = uuid.v4();
-            tokens[token] = ['/dspace/'+id ]
-            sendJSON( {
-              token:token, 
-              id:id 
-            } )
-          }
-        })
-
-        break;
-      }
       persona.auth(request, function(error, persona_response){
         if(error) {
-          console.error("Persona Failed : ", error.message);
-          response.writeHead(401, CORS_HEADERS);
-          response.write(error);
-          response.end();
+          if(error.reason == "nopersona" )
+            anonymousAuth()
+          else {
+            console.error("Persona Failed : ", error.message);
+            response.writeHead(401, CORS_HEADERS);
+            response.write(error);
+            response.end();
+          }
         } else {
-          console.log("Here we are Now, Authenticated");
-          generateToken(function(err, token) {
-            if(err) {
-              response.writeHead(500, CORS_HEADERS);
-              response.write(err);
-              response.end();
-            } else {
-              tokens[token] = ['/dspace'];
-              sendJSON({
-                token:token, 
-                id:persona_response.email
-              })
-            }
-          });
+          var id = persona_response;
+          //console.log("Here we are Now, Authenticated");
+          if( users[id] )
+            generateToken(function(err, token) {
+              if(err) {
+                response.writeHead(500, CORS_HEADERS);
+                response.write(err);
+                response.end();
+              } else {
+                var scope = users[id];
+                if(!scope){
+                  scope = ['/dspace']; //FIXME default scope schould be like ['/dspace/'+id, dspace/public'] or something
+                  users[id] = scope
+                }
+                tokens[token] = scope;
+                sendJSON({
+                  token:token, 
+                  id:id
+                })
+              }
+            });
         }
       });
     break;
