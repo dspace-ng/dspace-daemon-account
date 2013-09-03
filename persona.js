@@ -17,7 +17,7 @@ exports.auth = function(req, callback){
     if(assertion){ 
       auth(assertion, callback);
     } else {
-      var e = new Error("no assertion found : '"+str+"'" )
+      var e = new Error("no assertion found : '"+body+"'" )
       e.reason = 'nopersona'
       callback(e);
     }
