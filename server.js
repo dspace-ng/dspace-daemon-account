@@ -14,6 +14,13 @@ var fs = require('fs');
 
 var savedState = {};
 
+var notMeta = function(message){
+  return !message.channel.match(/^\/meta\/.*/);
+};
+
+var isSubscription = function(message){
+  return message.channel == '/meta/subscribe';
+};
 /*
  * Extension to persist data
  * http://faye.jcoglan.com/node/extensions.html
@@ -22,16 +29,15 @@ var persistData = {
   incoming: function(message, callback){
 
     // ignore meta messages
-    if(!message.channel.match(/^\/meta\//)){
-      return callback(message);
-    }
+    if(notMeta(message)){
 
-    // persist message
-    message.ext = {};
-    message.ext.saved_at = new Date().getTime();
-    db.save(message, function(err, res){
-      if(err) console.log(err);
-    });
+      // persist message
+      message.ext = {};
+      message.ext.saved_at = new Date().getTime();
+      db.save(message, function(err, res){
+        if(err) console.log(err);
+      });
+    }
 
     // call the server back
     callback(message);
@@ -52,7 +58,7 @@ var users = {}; try {
 var authentication = {
   incoming : function(message, callback){
     //handiling subscriptions
-    if(message.channel == '/meta/subscribe' ){
+    if(isSubscription(message)){
       var msgSubscription = message.subscription;
       var msgToken = message.ext && message.ext.token;
       var subscriptions = tokens[msgToken];
@@ -72,7 +78,7 @@ var authentication = {
 
 var rememberState = {
   incoming: function(message, callback) {
-    if(! message.channel.match(/^\/meta\//)) {
+    if(notMeta(message)) {
       if(! savedState[message.channel]) 
         savedState[message.channel] = {};
       savedState[message.channel][message.nickname] = message;
@@ -81,7 +87,7 @@ var rememberState = {
   },
 
   outgoing: function(message, callback) {
-    if(message.channel == '/meta/subscribe' && message.successful) {
+    if(isSubscription(message) && message.successful) {
       if(! message.ext) message.ext = {};
       if(message.subscription in savedState) {
         var channelState = savedState[message.subscription];
