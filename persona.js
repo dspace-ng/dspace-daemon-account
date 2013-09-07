@@ -11,22 +11,22 @@ exports.auth = function(req, callback){
   });
   req.on('end', function(){
     var data = qs.parse(body);
-    req.body = data
-    var assertion =  data['assertion'];
+    req.body = data;
+    var assertion =  data.assertion;
     // we have an assertion thingi
     if(assertion){ 
       auth(assertion, callback);
     } else {
-      var e = new Error("no assertion found : '"+body+"'" )
-      e.reason = 'nopersona'
+      var e = new Error("no assertion found : '"+body+"'" );
+      e.reason = 'nopersona';
       callback(e);
     }
   });
-}
+};
 
 function auth(assertion, callback){
   //taliking to the persona server
-  var body = "audience="+encodeURIComponent(audience)+"&assertion="+assertion
+  var body = "audience="+encodeURIComponent(audience)+"&assertion="+assertion;
   var request = https.request({
     host: 'verifier.login.persona.org',
     path: '/verify',
@@ -51,7 +51,7 @@ function auth(assertion, callback){
           callback(new Error(verified.reason), undefined);
         }
       });
-  })
+  });
   request.write(body);
   request.end();
 }

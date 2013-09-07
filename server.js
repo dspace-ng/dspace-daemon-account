@@ -22,9 +22,9 @@ var persistData = {
   incoming: function(message, callback){
 
     // ignore meta messages
-    if(message.channel.match(/\/meta\/*/)){
+    if(!message.channel.match(/^\/meta\//)){
       return callback(message);
-    };
+    }
 
     // persist message
     message.ext = {};
@@ -55,10 +55,10 @@ var authentication = {
     if(message.channel == '/meta/subscribe' ){
       var msgSubscription = message.subscription;
       var msgToken = message.ext && message.ext.token;
-      var subscriptions = tokens[msgToken]
+      var subscriptions = tokens[msgToken];
       if( ! subscriptions ||  subscriptions.indexOf(msgSubscription) == -1 )  {
         message.error = "not allowed to subscribe to this channel";
-        console.log('rejected : ', message)
+        console.log('rejected : ', message);
       }
     }
     callback(message);
@@ -68,7 +68,7 @@ var authentication = {
   // outgoing : function(message, callback){
 
   // }
-}
+};
 
 var rememberState = {
   incoming: function(message, callback) {
@@ -94,7 +94,7 @@ var rememberState = {
     }
     callback(message);
   }
-}
+};
 
 var bayeux = new Faye.NodeAdapter({mount: '/faye'});
 //bayeux.addExtension(persistData);
@@ -112,10 +112,10 @@ var CORS_HEADERS = {
 function generateToken(cb) {
   crypto.randomBytes(32, function(err, buf) {
     if(err)
-      cb(err)
+      cb(err);
     else 
       cb(undefined, buf.toString('base64'));
-  })
+  });
 }
 
 
@@ -137,19 +137,19 @@ var server = http.createServer(function(request, response) {
   function anonymousAuth(){
     generateToken(function(err, token){
       if(err) {
-        console.log("authorization of unidentified user failed : ", err)
+        console.log("authorization of unidentified user failed : ", err);
         response.writeHead(500, CORSE_HEADERS);
         response.write(err);
         response.end();
       } else {
         var id = uuid.v4();
-        tokens[token] = ['/dspace/'+id ]
+        tokens[token] = ['/dspace/'+id ];
         sendJSON( {
           token:token, 
           id:id 
-        } )
+        } );
       }
-    })
+    });
   }
 
   console.log('REQUEST', request.method, request.url);
@@ -163,7 +163,7 @@ var server = http.createServer(function(request, response) {
       persona.auth(request, function(error, persona_response){
         if(error) {
           if(error.reason == "nopersona" )
-            anonymousAuth()
+            anonymousAuth();
           else {
             console.error("Persona Failed : ", error.message);
             response.writeHead(401, CORS_HEADERS);
@@ -183,13 +183,13 @@ var server = http.createServer(function(request, response) {
                 var scope = users[id];
                 if(!scope){
                   scope = ['/dspace']; //FIXME default scope schould be like ['/dspace/'+id, dspace/public'] or something
-                  users[id] = scope
+                  users[id] = scope;
                 }
                 tokens[token] = scope;
                 sendJSON({
                   token:token, 
                   id:id
-                })
+                });
               }
             });
         }
