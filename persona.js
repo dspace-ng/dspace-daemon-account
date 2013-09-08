@@ -1,7 +1,12 @@
 var https = require('https');
 var qs = require('querystring');
+var nconf = require('nconf');
 
-var audience = "http://localhost:3000";
+/*
+ * get config from file
+ */
+nconf.file({ file: 'config.json' });
+
 // var exports = {}
 exports.auth = function(req, callback){
   // parsing the post data
@@ -25,10 +30,12 @@ exports.auth = function(req, callback){
 };
 
 function auth(assertion, callback){
+  var audience = nconf.get('persona').audience;
+
   //taliking to the persona server
   var body = "audience="+encodeURIComponent(audience)+"&assertion="+assertion;
   var request = https.request({
-    host: 'verifier.login.persona.org',
+    host: nconf.get('persona').verifier,
     path: '/verify',
     method: 'POST',
     headers: {

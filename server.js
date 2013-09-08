@@ -5,12 +5,22 @@ var persona = require('./persona');
 var crypto = require('crypto');
 var uuid = require('node-uuid');
 var fs = require('fs');
+var nconf = require('nconf');
 
-// var db = new(cradle.Connection)(process.env.COUCH_IP,
-//                                 process.env.COUCH_PORT,
-//                                 {auth: {username: process.env.COUCH_USERNAME, 
-//                                         password: process.env.COUCH_PASSWORD}}
-//                                ).database('dspace-elevate')
+/*
+ * get config from file
+ */
+nconf.file({ file: 'config.json' });
+
+if(nconf.get('couchdb').database !== "") {
+  var persisting = true;
+  console.log('saving data to CouchDB: ' + nconf.get('couchdb').database);
+  var db = new(cradle.Connection)(nconf.get('couchdb').ip,
+                                  nconf.get('couchdb').port,
+                                  {auth: {username: nconf.get('couchdb').username, 
+                                    password: nconf.get('couchdb').password}}
+                                 ).database(nconf.get('couchdb'));
+}
 
 var savedState = {};
 
@@ -44,16 +54,8 @@ var persistData = {
   }
 };
 
-var tokens = {}; try {
-  tokens = JSON.stringify(fs.readFileSync(env.tokens).toString());
-} catch(e) {
-  console.error("loading tokens failed ", e);
-} 
-var users = {}; try {
-  users = JSON.stringify(fs.readFileSync(env.users).toString());
-} catch(e) {
-  console.error("loading users failed ", e);
-} 
+var tokens = nconf.get('auth').tokens;
+var users = nconf.get('auth').users;
 
 var authentication = {
   incoming : function(message, callback){
@@ -103,7 +105,7 @@ var rememberState = {
 };
 
 var bayeux = new Faye.NodeAdapter({mount: '/faye'});
-//bayeux.addExtension(persistData);
+if(persisting) bayeux.addExtension(persistData);
 bayeux.addExtension(rememberState);
 bayeux.addExtension(authentication);
 
@@ -206,6 +208,7 @@ var server = http.createServer(function(request, response) {
 
 
 bayeux.attach(server);
-server.listen(5000, function() {
-  console.log('listening on 5000');
+var port = nconf.get('faye').port;
+server.listen(port, function() {
+  console.log('listening on ' + port);
 });

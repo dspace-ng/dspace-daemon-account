@@ -1,0 +1,22 @@
+{
+  "faye": {
+    "port": 5000
+  },
+  "couchdb": {
+    "ip": "127.0.0.1",
+    "port": 5984,
+    "database": "",
+    "username": "",
+    "password": ""
+  },
+  "persona": {
+    "audience": "http://localhost:3000",
+    "verifier": "verifier.login.persona.org"
+  },
+  "auth": {
+    "users": [
+    ],
+    "tokens": [
+    ]
+  }
+}
