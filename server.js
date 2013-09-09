@@ -107,7 +107,7 @@ var rememberState = {
 var bayeux = new Faye.NodeAdapter({mount: '/faye'});
 if(persisting) bayeux.addExtension(persistData);
 bayeux.addExtension(rememberState);
-bayeux.addExtension(authentication);
+// FIXME: bayeux.addExtension(authentication);
 
 var CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -179,8 +179,8 @@ var server = http.createServer(function(request, response) {
             response.end();
           }
         } else {
-          var id = persona_response;
-          //console.log("Here we are Now, Authenticated");
+          var id = persona_response.email;
+          console.log("Here we are Now, Authenticated");
           if( users[id] )
             generateToken(function(err, token) {
               if(err) {
