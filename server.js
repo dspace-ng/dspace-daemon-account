@@ -12,11 +12,13 @@ nconf.file({ file: 'config.json' });
 if(nconf.get('couchdb').database !== "") {
   var persisting = true;
   console.log('saving data to CouchDB: ' + nconf.get('couchdb').database);
+  var options = {};
+  if(nconf.get('couchdb').password !== ""){
+    options = {auth: {username: nconf.get('couchdb').username, password: nconf.get('couchdb').password}};
+  }
   var db = new(cradle.Connection)(nconf.get('couchdb').ip,
                                   nconf.get('couchdb').port,
-                                  {auth: {username: nconf.get('couchdb').username, 
-                                    password: nconf.get('couchdb').password}}
-                                 ).database(nconf.get('couchdb'));
+                                  options).database(nconf.get('couchdb').database);
 }
 
 var savedState = {};
