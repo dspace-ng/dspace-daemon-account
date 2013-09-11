@@ -3,6 +3,9 @@ var cradle = require('cradle');
 var http = require('http');
 var fs = require('fs');
 var nconf = require('nconf');
+var formidable = require('formidable');
+var util = require('util'); // #debug
+var static = require('node-static');
 
 /*
  * get config from file
@@ -20,6 +23,13 @@ if(nconf.get('couchdb').database !== "") {
                                   nconf.get('couchdb').port,
                                   options).database(nconf.get('couchdb').database);
 }
+
+/*
+ * static media files
+ */
+var mediaPath = process.cwd() + '/upload';
+var mediaServer = new static.Server();
+
 
 var savedState = {};
 
@@ -43,9 +53,18 @@ var persistData = {
       // persist message
       message.ext = {};
       message.ext.saved_at = new Date().getTime();
-      db.save(message, function(err, res){
-        if(err) console.log(err);
-      });
+      console.log(message);
+
+      // if it has UUID just save it using original one
+      if(message.data.uuid) {
+        db.save(message.data.uuid, message, function(err, res){
+          if(err) console.log(err);
+        });
+      } else {
+        db.save(message, function(err, res){
+          if(err) console.log(err);
+        });
+      }
     }
 
     // call the server back
@@ -107,15 +126,57 @@ var server = http.createServer(function(request, response) {
   }
 
 
+  function saveAttachement(fields, files) {
+    var noteUUID = JSON.parse(fields.meta).noteUUID;
+    var destination = mediaPath + '/' +  noteUUID;
+
+    var is = fs.createReadStream(files.file.path);
+    var os = fs.createWriteStream(destination);
+
+    is.pipe(os);
+    is.on('end',function() {
+          fs.unlinkSync(files.file.path);
+    });
+    //console.log(util.inspect({fields: fields, files: files}));
+  }
+
   console.log('REQUEST', request.method, request.url);
   switch(request.method) {
-  case 'OPTIONS':
-    response.writeHead(204, CORS_HEADERS);
+    case 'GET':
+      if(request.url.match('/upload/*')){
+      fs.readFile(__dirname + request.url, function (err,data) {
+        if (err) {
+          response.writeHead(404);
+          response.end(JSON.stringify(err));
+          return;
+        }
+        response.writeHead(200);
+        response.end(data);
+      }
+                 );
+      }
+    break;
+
+
+    case 'OPTIONS':
+      response.writeHead(204, CORS_HEADERS);
     response.end();
     break;
-  case 'POST':
+    case 'POST':
+      if(request.url == '/upload') {
+      var noteUUID;
+
+      var form = new formidable.IncomingForm();
+      form.parse(request, function(err, fields, files) {
+        response.writeHead(200, CORS_HEADERS);
+        response.write('received upload:\n\n');
+        response.end(saveAttachement(fields, files));
+      });
+      return;
+    }
     break;
   }
+
 });
 
 
