@@ -8,15 +8,5 @@
     "database": "",
     "username": "",
     "password": ""
-  },
-  "persona": {
-    "audience": "http://localhost:3000",
-    "verifier": "verifier.login.persona.org"
-  },
-  "auth": {
-    "users": [
-    ],
-    "tokens": [
-    ]
   }
 }
