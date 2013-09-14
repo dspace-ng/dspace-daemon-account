@@ -53,7 +53,6 @@ var persistData = {
       // persist message
       message.ext = {};
       message.ext.saved_at = new Date().getTime();
-      console.log(message);
 
       // if it has UUID just save it using original one
       if(message.data.uuid) {
@@ -75,9 +74,11 @@ var persistData = {
 var rememberState = {
   incoming: function(message, callback) {
     if(notMeta(message)) {
-      if(! savedState[message.channel]) 
+      var channel = message.channel.split('/')[2];
+      var uuid = message.channel.split('/')[3];
+      if(!savedState[uuid])
         savedState[message.channel] = {};
-      savedState[message.channel][message.nickname] = message;
+      savedState[uuid][message.nickname] = message;
     }
     callback(message);
   },
@@ -100,7 +101,7 @@ var rememberState = {
 
 var bayeux = new Faye.NodeAdapter({mount: '/faye'});
 if(persisting) bayeux.addExtension(persistData);
-bayeux.addExtension(rememberState);
+//bayeux.addExtension(rememberState);
 
 var CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -111,20 +112,6 @@ var CORS_HEADERS = {
 
 
 var server = http.createServer(function(request, response) {
-
-  function sendJSON(data){
-    var headers = {
-      'Content-Type': 'application/json'
-    };
-    for(var key in CORS_HEADERS) {
-      headers[key] = CORS_HEADERS[key];
-    }
-    response.writeHead(200, headers);
-    response.write( JSON.stringify(data) );
-    response.end();
-
-  }
-
 
   function saveAttachement(fields, files) {
     var noteUUID = JSON.parse(fields.meta).noteUUID;
@@ -137,7 +124,6 @@ var server = http.createServer(function(request, response) {
     is.on('end',function() {
           fs.unlinkSync(files.file.path);
     });
-    //console.log(util.inspect({fields: fields, files: files}));
   }
 
   console.log('REQUEST', request.method, request.url);
@@ -146,11 +132,11 @@ var server = http.createServer(function(request, response) {
       if(request.url.match('/upload/*')){
       fs.readFile(__dirname + request.url, function (err,data) {
         if (err) {
-          response.writeHead(404);
+          response.writeHead(404, CORS_HEADERS);
           response.end(JSON.stringify(err));
           return;
         }
-        response.writeHead(200);
+        response.writeHead(200, CORS_HEADERS);
         response.end(data);
       }
                  );
