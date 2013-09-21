@@ -23,6 +23,11 @@ if(nconf.get('couchdb').database !== "") {
  * Extension to persist data
  * http://faye.jcoglan.com/node/extensions.html
  */
+
+var notMeta = function(message){
+  return !message.channel.match(/^\/meta\/.*/);
+};
+
 var persistData = {
   incoming: function(message, callback){
 
