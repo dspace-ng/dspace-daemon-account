@@ -1,63 +1,120 @@
-var Faye = require('faye');
-var cradle = require('cradle');
 var nconf = require('nconf');
+var http = require('http');
+var express = require('express');
+var cors = require('cors');
+var Faye = require('faye');
+var levelup = require('level');
 
 /*
  * get config from file
  */
 nconf.file({ file: 'config.json' });
 
-if(nconf.get('couchdb').database !== "") {
-  var persisting = true;
-  console.log('saving data to CouchDB: ' + nconf.get('couchdb').database);
-  var options = {};
-  if(nconf.get('couchdb').password !== ""){
-    options = {auth: {username: nconf.get('couchdb').username, password: nconf.get('couchdb').password}};
-  }
-  var db = new(cradle.Connection)(nconf.get('couchdb').ip,
-                                  nconf.get('couchdb').port,
-                                  options).database(nconf.get('couchdb').database);
-}
+var db = levelup(nconf.get('db').location, { keyEncoding: 'json', valueEncoding: 'json' });
 
 /*
- * Extension to persist data
- * http://faye.jcoglan.com/node/extensions.html
+ * data
+ */
+var players = {};
+db.get('players', { asBuffer: false }, function(err, data){
+  if(err) console.log(err);
+  if(data){
+    players = data;
+  }
+}.bind(this));
+
+var updatePlayers = function(player){
+  players[player.uuid] = player;
+  db.put('players', players, function(err){ console.log(err); });
+};
+
+var tracks = {};
+db.get('tracks', { asBuffer: false }, function(err, data){
+  if(err) console.log(err);
+  if(data){
+    tracks = data;
+  }
+}.bind(this));
+
+var updateTrack = function(uuid, position){
+  if(!tracks[uuid]) tracks[uuid] = [];
+  tracks[uuid].push(position);
+  db.put('tracks', tracks, function(err){ console.log(err); });
+  db.put('tracks/' + uuid, tracks[uuid], function(err){ console.log(err); });
+};
+
+/*
+ * Faye
  */
 
 var notMeta = function(message){
   return !message.channel.match(/^\/meta\/.*/);
 };
 
-var persistData = {
+var storeMessages = {
   incoming: function(message, callback){
-
-    // ignore meta messages
     if(notMeta(message)){
 
-      // persist message
-      message.ext = {};
-      message.ext.saved_at = new Date().getTime();
+      if(nconf.get('debug')) console.log(message);
 
-      // if it has UUID just save it using original one
-      if(message.data.uuid) {
-        db.save(message.data.uuid, message, function(err, res){
-          if(err) console.log(err);
-        });
-      } else {
-        db.save(message, function(err, res){
-          if(err) console.log(err);
-        });
-      }
+      //if(message.channel.match(/players/)){
+        //updatePlayers(message.data);
+      //} else if(message.channel.match(/positions/)){
+        //var uuid = message.channel.replace('/positions/', '');
+        //updateTrack(uuid, message.data);
+      //}
     }
-
-    // call the server back
     callback(message);
   }
 };
 
 var bayeux = new Faye.NodeAdapter({mount: '/faye'});
-if(persisting) bayeux.addExtension(persistData);
+bayeux.addExtension(storeMessages);
+
+/*
+ * Express
+ */
+
+var app = express();
+
+app.get('/players', function(req, res) {
+  db.get('players', { asBuffer: false }, function(err, data){
+    if(err) console.log(err);
+    if(data){
+      res.json(data);
+    }
+    res.send(200);
+  }.bind(this));
+});
+
+app.get('/tracks', function(req, res) {
+  db.get('tracks', { asBuffer: false }, function(err, data){
+    if(err) console.log(err);
+    if(data){
+      res.json(data);
+    }
+    res.send(200);
+  }.bind(this));
+});
+
+app.get('/tracks/:uuid', function(req, res) {
+  db.get('tracks/' + req.params.uuid, { asBuffer: false }, function(err, data){
+    if(err) console.log(err);
+    if(data){
+      res.json(data);
+    }
+    res.send(200);
+  }.bind(this));
+});
+
+/*
+ * Express + Faye
+ */
+var server = http.createServer(app);
+bayeux.attach(server);
 
 var port = nconf.get('faye').port;
-bayeux.listen(port);
-console.log('listening on ' + port);
+server.listen(port);
+
+console.log('port: ', port);
+console.log('db: ', db.location);

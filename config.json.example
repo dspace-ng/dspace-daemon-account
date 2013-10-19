@@ -2,11 +2,8 @@
   "faye": {
     "port": 5000
   },
-  "couchdb": {
-    "ip": "127.0.0.1",
-    "port": 5984,
-    "database": "",
-    "username": "",
-    "password": ""
+  "db": {
+    "location": "dev"
   }
+  "debug": false
 }
