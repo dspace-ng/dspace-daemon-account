@@ -1,9 +1,9 @@
 {
-  "faye": {
+  "bayeux": {
     "port": 5000
   },
   "db": {
-    "location": "dev"
-  }
+    "location": "./dev.lup"
+  },
   "debug": false
 }

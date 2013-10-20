@@ -1,4 +1,5 @@
 var nconf = require('nconf');
+var _ = require('lodash');
 var http = require('http');
 var express = require('express');
 var cors = require('cors');
@@ -15,32 +16,47 @@ var db = levelup(nconf.get('db').location, { keyEncoding: 'json', valueEncoding:
 /*
  * data
  */
-var players = {};
-db.get('players', { asBuffer: false }, function(err, data){
+var roster = [];
+var tracks = {};
+
+var loadedTrack = function(err, data){
   if(err) console.log(err);
   if(data){
-    players = data;
+    tracks[this.uuid] = data;
   }
-}.bind(this));
-
-var updatePlayers = function(player){
-  players[player.uuid] = player;
-  db.put('players', players, function(err){ console.log(err); });
 };
 
-var tracks = {};
-db.get('tracks', { asBuffer: false }, function(err, data){
-  if(err) console.log(err);
-  if(data){
-    tracks = data;
-  }
-}.bind(this));
+var loadTracks = function(){
+  Object.keys(roster).forEach(function(uuid){
+    this.uuid = uuid;
+    db.get('/' + uuid + '/track', { asBuffer: false }, loadedTrack.bind(this));
+  });
+};
 
 var updateTrack = function(uuid, position){
   if(!tracks[uuid]) tracks[uuid] = [];
   tracks[uuid].push(position);
-  db.put('tracks', tracks, function(err){ console.log(err); });
-  db.put('tracks/' + uuid, tracks[uuid], function(err){ console.log(err); });
+  db.put('/' + uuid + '/track', tracks[uuid], function(err){ console.log(err); });
+};
+
+
+db.get('/roster', { asBuffer: false }, function(err, data){
+  if(err) console.log(err);
+  if(data){
+    roster = data;
+    loadTracks();
+  }
+}.bind(this));
+
+var updateRoster = function(player){
+  var index = _.findIndex(roster, function(pl){ return pl.uuid === player.uuid; });
+  console.log(index);
+  if(index >= 0){
+    roster[index] = player;
+  } else {
+    roster.push(player);
+  }
+  db.put('/roster', roster, function(err){ console.log(err); });
 };
 
 /*
@@ -57,18 +73,18 @@ var storeMessages = {
 
       if(nconf.get('debug')) console.log(message);
 
-      //if(message.channel.match(/players/)){
-        //updatePlayers(message.data);
-      //} else if(message.channel.match(/positions/)){
-        //var uuid = message.channel.replace('/positions/', '');
-        //updateTrack(uuid, message.data);
-      //}
+      if(message.channel.match(/roster/)){
+        updateRoster(message.data);
+      } else if(message.channel.match(/track/)){
+        var uuid = message.channel.split('/')[1];
+        updateTrack(uuid, message.data);
+      }
     }
     callback(message);
   }
 };
 
-var bayeux = new Faye.NodeAdapter({mount: '/faye'});
+var bayeux = new Faye.NodeAdapter({mount: '/bayeux'});
 bayeux.addExtension(storeMessages);
 
 /*
@@ -76,29 +92,22 @@ bayeux.addExtension(storeMessages);
  */
 
 var app = express();
+app.use(cors());
 
-app.get('/players', function(req, res) {
-  db.get('players', { asBuffer: false }, function(err, data){
-    if(err) console.log(err);
+app.get('/roster', function(req, res) {
+  db.get('/roster', { asBuffer: false }, function(err, data){
+    if(err){
+      console.log(err);
+      res.send(500);
+    }
     if(data){
       res.json(data);
     }
-    res.send(200);
   }.bind(this));
 });
 
-app.get('/tracks', function(req, res) {
-  db.get('tracks', { asBuffer: false }, function(err, data){
-    if(err) console.log(err);
-    if(data){
-      res.json(data);
-    }
-    res.send(200);
-  }.bind(this));
-});
-
-app.get('/tracks/:uuid', function(req, res) {
-  db.get('tracks/' + req.params.uuid, { asBuffer: false }, function(err, data){
+app.get('/:uuid/track', function(req, res) {
+  db.get('/' + req.params.uuid + '/track' , { asBuffer: false }, function(err, data){
     if(err) console.log(err);
     if(data){
       res.json(data);
@@ -113,7 +122,7 @@ app.get('/tracks/:uuid', function(req, res) {
 var server = http.createServer(app);
 bayeux.attach(server);
 
-var port = nconf.get('faye').port;
+var port = nconf.get('bayeux').port;
 server.listen(port);
 
 console.log('port: ', port);

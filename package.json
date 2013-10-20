@@ -22,7 +22,8 @@
     "express": "~3.4.0",
     "cors": "~1.0.1",
     "faye": "1.0.0",
-    "level": "~0.17.0-1"
+    "level": "~0.17.0-1",
+    "lodash": "~2.2.1"
   },
   "devDependencies": {
     "grunt": "~0.4.1",
