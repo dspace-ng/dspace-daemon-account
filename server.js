@@ -16,7 +16,7 @@ var db = levelup(nconf.get('db').location, { keyEncoding: 'json', valueEncoding:
 /*
  * data
  */
-var roster = [];
+var portal = [];
 var tracks = {};
 
 var loadedTrack = function(err, data){
@@ -27,7 +27,7 @@ var loadedTrack = function(err, data){
 };
 
 var loadTracks = function(){
-  Object.keys(roster).forEach(function(uuid){
+  Object.keys(portal).forEach(function(uuid){
     this.uuid = uuid;
     db.get('/' + uuid + '/track', { asBuffer: false }, loadedTrack.bind(this));
   });
@@ -40,23 +40,23 @@ var updateTrack = function(uuid, position){
 };
 
 
-db.get('/roster', { asBuffer: false }, function(err, data){
+db.get('/portal', { asBuffer: false }, function(err, data){
   if(err) console.log(err);
   if(data){
-    roster = data;
+    portal = data;
     loadTracks();
   }
 }.bind(this));
 
-var updateRoster = function(player){
-  var index = _.findIndex(roster, function(pl){ return pl.uuid === player.uuid; });
+var updatePortal = function(player){
+  var index = _.findIndex(portal, function(pl){ return pl.uuid === player.uuid; });
   console.log(index);
   if(index >= 0){
-    roster[index] = player;
+    portal[index] = player;
   } else {
-    roster.push(player);
+    portal.push(player);
   }
-  db.put('/roster', roster, function(err){ console.log(err); });
+  db.put('/portal', portal, function(err){ console.log(err); });
 };
 
 /*
@@ -73,8 +73,8 @@ var storeMessages = {
 
       if(nconf.get('debug')) console.log(message);
 
-      if(message.channel.match(/roster/)){
-        updateRoster(message.data);
+      if(message.channel.match(/portal/)){
+        updatePortal(message.data);
       } else if(message.channel.match(/track/)){
         var uuid = message.channel.split('/')[1];
         updateTrack(uuid, message.data);
@@ -94,8 +94,8 @@ bayeux.addExtension(storeMessages);
 var app = express();
 app.use(cors());
 
-app.get('/roster', function(req, res) {
-  db.get('/roster', { asBuffer: false }, function(err, data){
+app.get('/portal', function(req, res) {
+  db.get('/portal', { asBuffer: false }, function(err, data){
     if(err){
       console.log(err);
       res.send(500);
@@ -108,11 +108,13 @@ app.get('/roster', function(req, res) {
 
 app.get('/:uuid/track', function(req, res) {
   db.get('/' + req.params.uuid + '/track' , { asBuffer: false }, function(err, data){
-    if(err) console.log(err);
+    if(err){
+      console.log(err);
+      res.send(500);
+    }
     if(data){
       res.json(data);
     }
-    res.send(200);
   }.bind(this));
 });
 
