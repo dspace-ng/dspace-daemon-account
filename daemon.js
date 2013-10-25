@@ -65,7 +65,6 @@ var storeMessages = {
       if(!channels[path]){
         channels[path] = [];
         saveListing();
-        console.log(channels);
       }
       saveMessage(path, message.data);
     }
