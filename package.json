@@ -31,6 +31,7 @@
     "grunt-contrib-jshint": "~0.6.4",
     "grunt-contrib-watch": "~0.5.3",
     "grunt-markdown": "~0.4.0",
+    "grunt-develop": "~0.2.2",
     "grunt-notify": "~0.2.13",
     "mocha": "~1.13.0",
     "chai": "~1.8.1",
