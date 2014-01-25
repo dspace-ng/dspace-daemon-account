@@ -1,8 +1,11 @@
 {
   "name": "dspace-daemon-account",
-  "version": "0.3.0",
-  "description": "Prototype of server using Bayeux protocol for pub/sub",
-  "main": "server.js",
+  "version": "0.0.0",
+  "description": "Daemon providing accounts for use in a Pod.",
+  "main": "daemon.js",
+  "bin": {
+    "dspace-daemon-account": "node daemon.js"
+  },
   "scripts": {
     "test": "./node_modules/.bin/mocha --watch"
   },
