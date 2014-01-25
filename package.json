@@ -1,5 +1,5 @@
 {
-  "name": "dspace-hub",
+  "name": "dspace-daemon-account",
   "version": "0.3.0",
   "description": "Prototype of server using Bayeux protocol for pub/sub",
   "main": "server.js",
@@ -18,12 +18,12 @@
   },
   "license": "Unlicense",
   "dependencies": {
-    "nconf": "~0.6.7",
     "express": "~3.4.0",
     "cors": "~1.0.1",
     "faye": "1.0.0",
-    "level": "~0.17.0-1",
-    "lodash": "~2.2.1"
+    "lodash": "~2.2.1",
+    "levelup": "~0.18.2",
+    "memdown": "~0.6.0"
   },
   "devDependencies": {
     "grunt": "~0.4.1",

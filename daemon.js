@@ -1,17 +1,17 @@
-var nconf = require('nconf');
 var _ = require('lodash');
 var http = require('http');
 var express = require('express');
 var cors = require('cors');
 var Faye = require('faye');
-var levelup = require('level');
+var levelup = require('levelup');
+var memdown = require('memdown');
+var port = process.argv[2] || 5200;
 
-/*
- * get config from file
- */
-nconf.file({ file: 'config.json' });
-
-var db = levelup(nconf.get('db').location, { keyEncoding: 'json', valueEncoding: 'json' });
+var db = levelup('ignored', {
+  db: memdown,
+  keyEncoding: 'json',
+  valueEncoding: 'json'
+});
 
 /*
  * data
@@ -58,9 +58,6 @@ var notMeta = function(message){
 var storeMessages = {
   incoming: function(message, callback){
     if(notMeta(message)){
-
-      if(nconf.get('debug')) console.log(message);
-
       var path = message.channel;
       if(!channels[path]){
         channels[path] = [];
@@ -93,8 +90,6 @@ app.get('*', function(req, res) {
 var server = http.createServer(app);
 bayeux.attach(server);
 
-var port = nconf.get('bayeux').port;
 server.listen(port);
 
-console.log('port: ', port);
-console.log('db: ', db.location);
+console.log('Daemon started on port: ', port);
