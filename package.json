@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "description": "Daemon providing accounts for use in a Pod.",
   "main": "daemon.js",
-  "bin": "./daemon.js"
+  "bin": "./daemon.js",
   "scripts": {
     "test": "./node_modules/.bin/mocha --watch"
   },
