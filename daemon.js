@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 var _ = require('lodash');
 var http = require('http');
 var express = require('express');
